@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Marrow Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  body { background: var(--color-bg-alt); }
+
+  .admin-header {
+    background: var(--color-ink);
+    color: var(--color-bg);
+    padding: 16px 0;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .admin-header .wrap { display: flex; align-items: center; justify-content: space-between; }
+  .admin-header .brand { color: var(--color-bg); font-size: 1.1rem; }
+  .admin-header__right { display: flex; align-items: center; gap: 18px; font-size: 0.88rem; }
+  .admin-header__right a, .admin-header__right button {
+    color: #D9D6CC;
+    background: none;
+    border: none;
+    font: inherit;
+    cursor: pointer;
+  }
+  .admin-header__right a:hover, .admin-header__right button:hover { color: var(--color-bg); }
+
+  .admin-body { padding-block: 40px 100px; }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--color-stone-line);
+    margin-bottom: 36px;
+    flex-wrap: wrap;
+  }
+  .tab {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 12px 18px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--color-ink-soft);
+    cursor: pointer;
+  }
+  .tab.is-active { color: var(--color-forest); border-bottom-color: var(--color-forest); }
+
+  .panel { display: none; }
+  .panel.is-active { display: block; }
+
+  .field-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-stone-line);
+    border-radius: var(--radius-s);
+    padding: 22px 24px;
+    margin-bottom: 16px;
+  }
+  .field-card label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-taupe);
+    margin-bottom: 10px;
+  }
+  .field-card input[type="text"],
+  .field-card textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--color-stone-line);
+    border-radius: var(--radius-s);
+    font-family: var(--font-body);
+    font-size: 0.96rem;
+    color: var(--color-ink);
+  }
+  .field-card textarea { min-height: 90px; resize: vertical; }
+  .field-card input:focus, .field-card textarea:focus {
+    outline: none;
+    border-color: var(--color-forest);
+  }
+  .field-card--image { display: grid; grid-template-columns: 100px 1fr; gap: 18px; align-items: start; }
+  .field-card--image .img-preview {
+    width: 100px; height: 100px;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--color-stone-line);
+    object-fit: cover;
+    background: var(--color-bg-alt);
+  }
+  @media (max-width: 560px) {
+    .field-card--image { grid-template-columns: 1fr; }
+    .field-card--image .img-preview { width: 100%; height: 160px; }
+  }
+
+  .save-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--color-ink);
+    color: var(--color-bg);
+    padding: 16px var(--gutter);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 60;
+    transform: translateY(100%);
+    transition: transform 220ms ease;
+  }
+  .save-bar.is-visible { transform: translateY(0); }
+  .save-bar__msg { font-size: 0.9rem; color: #B9B6AC; }
+  .save-bar .btn--primary { padding: 12px 22px; }
+
+  .toast {
+    position: fixed;
+    top: 90px; right: 24px;
+    background: var(--color-forest);
+    color: var(--color-bg);
+    padding: 14px 22px;
+    border-radius: var(--radius-s);
+    font-size: 0.9rem;
+    z-index: 100;
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: opacity 220ms ease, transform 220ms ease;
+    pointer-events: none;
+  }
+  .toast.is-visible { opacity: 1; transform: translateY(0); }
+
+  .submissions-table { width: 100%; border-collapse: collapse; background: var(--color-white); }
+  .submissions-table th, .submissions-table td {
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-stone-line);
+    font-size: 0.88rem;
+    vertical-align: top;
+  }
+  .submissions-table th {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-taupe);
+  }
+
+  .pw-form { max-width: 420px; background: var(--color-white); border: 1px solid var(--color-stone-line); border-radius: var(--radius-s); padding: 28px; }
+</style>
+</head>
+<body>
+
+<header class="admin-header">
+  <div class="wrap">
+    <div class="brand"><span class="brand__mark">◆</span> Marrow Studio — Admin</div>
+    <div class="admin-header__right">
+      <span id="whoami"></span>
+      <a href="/" target="_blank" rel="noopener">View site ↗</a>
+      <button id="logout-btn">Log out</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap admin-body">
+
+  <div class="tabs" id="tabs">
+    <button class="tab is-active" data-tab="home">Home page</button>
+    <button class="tab" data-tab="about">About page</button>
+    <button class="tab" data-tab="services">Services page</button>
+    <button class="tab" data-tab="contact">Contact page</button>
+    <button class="tab" data-tab="global">Site-wide</button>
+    <button class="tab" data-tab="submissions">Enquiries</button>
+    <button class="tab" data-tab="account">Account</button>
+  </div>
+
+  <div id="panels"></div>
+
+</div>
+
+<div class="save-bar" id="save-bar">
+  <span class="save-bar__msg" id="save-bar-msg">Unsaved changes</span>
+  <button class="btn btn--primary" id="save-btn">Save changes</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PAGES = ['home', 'about', 'services', 'contact', 'global'];
+let contentData = {};
+let dirtyFields = {}; // { id: value }
+
+async function init() {
+  const me = await fetch('/api/admin/me');
+  if (!me.ok) { window.location.href = '/admin/login'; return; }
+  const meData = await me.json();
+  document.getElementById('whoami').textContent = `Signed in as ${meData.username}`;
+
+  const res = await fetch('/api/admin/content');
+  contentData = await res.json();
+
+  PAGES.forEach(renderPagePanel);
+  renderSubmissionsPanel();
+  renderAccountPanel();
+  bindTabs();
+  bindSave();
+}
+
+function renderPagePanel(page) {
+  const panels = document.getElementById('panels');
+  const panel = document.createElement('div');
+  panel.className = 'panel' + (page === 'home' ? ' is-active' : '');
+  panel.id = `panel-${page}`;
+
+  const fields = contentData[page] || [];
+  panel.innerHTML = fields.map(fieldHtml).join('');
+  panels.appendChild(panel);
+
+  fields.forEach((f) => {
+    const el = document.getElementById(`field-${f.id}`);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      dirtyFields[f.id] = el.value;
+      showSaveBar();
+      if (f.field_type === 'image') {
+        const preview = document.getElementById(`preview-${f.id}`);
+        if (preview) preview.src = el.value;
+      }
+    });
+  });
+}
+
+function fieldHtml(f) {
+  if (f.field_type === 'image') {
+    return `
+      <div class="field-card field-card--image">
+        <img id="preview-${f.id}" class="img-preview" src="${escapeAttr(f.value)}" alt="">
+        <div>
+          <label for="field-${f.id}">${escapeHtml(f.field_label)}</label>
+          <input type="text" id="field-${f.id}" value="${escapeAttr(f.value)}" placeholder="https://...">
+        </div>
+      </div>`;
+  }
+  if (f.field_type === 'textarea') {
+    return `
+      <div class="field-card">
+        <label for="field-${f.id}">${escapeHtml(f.field_label)}</label>
+        <textarea id="field-${f.id}">${escapeHtml(f.value)}</textarea>
+      </div>`;
+  }
+  return `
+    <div class="field-card">
+      <label for="field-${f.id}">${escapeHtml(f.field_label)}</label>
+      <input type="text" id="field-${f.id}" value="${escapeAttr(f.value)}">
+    </div>`;
+}
+
+function renderSubmissionsPanel() {
+  const panels = document.getElementById('panels');
+  const panel = document.createElement('div');
+  panel.className = 'panel';
+  panel.id = 'panel-submissions';
+  panel.innerHTML = `<p style="margin-bottom:20px; color:var(--color-ink-soft);">Loading enquiries…</p>`;
+  panels.appendChild(panel);
+
+  fetch('/api/admin/submissions')
+    .then((r) => r.json())
+    .then((rows) => {
+      if (!rows.length) {
+        panel.innerHTML = `<p style="color:var(--color-ink-soft);">No enquiries yet. Submissions from the contact form will appear here.</p>`;
+        return;
+      }
+      panel.innerHTML = `
+        <table class="submissions-table">
+          <thead><tr><th>Date</th><th>Name</th><th>Email</th><th>Phone</th><th>Service</th><th>Message</th></tr></thead>
+          <tbody>
+            ${rows.map((r) => `
+              <tr>
+                <td>${escapeHtml(new Date(r.created_at).toLocaleString())}</td>
+                <td>${escapeHtml(r.name)}</td>
+                <td><a href="mailto:${escapeAttr(r.email)}">${escapeHtml(r.email)}</a></td>
+                <td>${escapeHtml(r.phone || '—')}</td>
+                <td>${escapeHtml(r.service || '—')}</td>
+                <td style="max-width:320px;">${escapeHtml(r.message)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+    });
+}
+
+function renderAccountPanel() {
+  const panels = document.getElementById('panels');
+  const panel = document.createElement('div');
+  panel.className = 'panel';
+  panel.id = 'panel-account';
+  panel.innerHTML = `
+    <div class="pw-form">
+      <h4 style="margin-bottom:18px;">Change password</h4>
+      <div id="pw-error" class="login-error" role="alert" style="display:none; background:rgba(178,58,46,0.08); border:1px solid #B23A2E; color:#B23A2E; padding:12px 16px; border-radius:3px; font-size:0.88rem; margin-bottom:16px;"></div>
+      <div id="pw-success" style="display:none; background:rgba(62,90,79,0.1); border:1px solid var(--color-forest); color:var(--color-forest-dark); padding:12px 16px; border-radius:3px; font-size:0.88rem; margin-bottom:16px;"></div>
+      <div class="field">
+        <label for="current-password">Current password</label>
+        <input type="password" id="current-password">
+      </div>
+      <div class="field">
+        <label for="new-password">New password (min. 8 characters)</label>
+        <input type="password" id="new-password">
+      </div>
+      <button class="btn btn--primary" id="pw-submit">Update password</button>
+    </div>`;
+  panels.appendChild(panel);
+
+  document.getElementById('pw-submit').addEventListener('click', async () => {
+    const currentPassword = document.getElementById('current-password').value;
+    const newPassword = document.getElementById('new-password').value;
+    const errBox = document.getElementById('pw-error');
+    const okBox = document.getElementById('pw-success');
+    errBox.style.display = 'none';
+    okBox.style.display = 'none';
+
+    const res = await fetch('/api/admin/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errBox.textContent = data.error;
+      errBox.style.display = 'block';
+    } else {
+      okBox.textContent = 'Password updated.';
+      okBox.style.display = 'block';
+      document.getElementById('current-password').value = '';
+      document.getElementById('new-password').value = '';
+    }
+  });
+}
+
+function bindTabs() {
+  document.querySelectorAll('.tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach((t) => t.classList.remove('is-active'));
+      document.querySelectorAll('.panel').forEach((p) => p.classList.remove('is-active'));
+      tab.classList.add('is-active');
+      document.getElementById(`panel-${tab.dataset.tab}`).classList.add('is-active');
+    });
+  });
+}
+
+function showSaveBar() {
+  const bar = document.getElementById('save-bar');
+  const count = Object.keys(dirtyFields).length;
+  document.getElementById('save-bar-msg').textContent = `${count} unsaved change${count === 1 ? '' : 's'}`;
+  bar.classList.add('is-visible');
+}
+
+function bindSave() {
+  document.getElementById('save-btn').addEventListener('click', async () => {
+    const updates = Object.entries(dirtyFields).map(([id, value]) => ({ id: Number(id), value }));
+    if (!updates.length) return;
+
+    const res = await fetch('/api/admin/content', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates }),
+    });
+
+    if (res.ok) {
+      dirtyFields = {};
+      document.getElementById('save-bar').classList.remove('is-visible');
+      showToast('Changes saved.');
+    } else {
+      showToast('Save failed — please try again.');
+    }
+  });
+
+  document.getElementById('logout-btn').addEventListener('click', async () => {
+    await fetch('/api/admin/logout', { method: 'POST' });
+    window.location.href = '/admin/login';
+  });
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('is-visible');
+  setTimeout(() => toast.classList.remove('is-visible'), 2600);
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+function escapeAttr(str) {
+  return (str || '').replace(/"/g, '&quot;');
+}
+
+init();
+</script>
+
+</body>
+</html>
