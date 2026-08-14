@@ -187,7 +187,7 @@ app.use(express.static(path.join(__dirname, 'public')));
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Marrow Studio server running at http://localhost:${PORT}`);
-  console.log(`Admin panel at http://localhost:${PORT}/admin/login`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Marrow Studio server running on port ${PORT}`);
+  console.log(`Admin panel at /admin/login`);
 });
