@@ -46,8 +46,8 @@ Start the server:
 npm start
 ```
 
-- Public site: http://localhost:4000
-- Admin panel: http://localhost:4000/admin/login
+- Public site: http://localhost:8080
+- Admin panel: http://localhost:8080/admin/login
 
 ## How editing works
 
