@@ -4,10 +4,41 @@ const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Uploaded images live on the same persistent volume as the database
+// (data/) so they survive redeploys, rather than in public/ which can
+// be rebuilt from scratch on each deploy.
+const uploadsDir = path.join(__dirname, 'data', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5MB
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadsDir),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+      const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+      cb(null, unique);
+    },
+  }),
+  limits: { fileSize: MAX_UPLOAD_BYTES },
+  fileFilter: (req, file, cb) => {
+    if (!ALLOWED_TYPES.has(file.mimetype)) {
+      return cb(new Error('Only JPG, PNG, WEBP, or GIF images are allowed.'));
+    }
+    cb(null, true);
+  },
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -152,6 +183,21 @@ app.put('/api/admin/content', requireAuth, (req, res) => {
   res.json({ ok: true, updated: updates.length });
 });
 
+// Image upload — saves the file to the persistent volume and returns its URL
+app.post('/api/admin/upload', requireAuth, (req, res) => {
+  upload.single('image')(req, res, (err) => {
+    if (err) {
+      const message = err.code === 'LIMIT_FILE_SIZE'
+        ? 'Image is too large — max size is 5MB.'
+        : (err.message || 'Upload failed.');
+      return res.status(400).json({ error: message });
+    }
+    if (!req.file) return res.status(400).json({ error: 'No file received.' });
+
+    res.json({ ok: true, url: `/uploads/${req.file.filename}` });
+  });
+});
+
 // View contact submissions
 app.get('/api/admin/submissions', requireAuth, (req, res) => {
   const rows = db.prepare('SELECT * FROM contact_submissions ORDER BY created_at DESC').all();
@@ -178,6 +224,7 @@ app.post('/api/admin/change-password', requireAuth, (req, res) => {
 // -----------------------------------------------------------------------
 // Public site (static files + page routes)
 // -----------------------------------------------------------------------
+app.use('/uploads', express.static(uploadsDir));
 app.use(express.static(path.join(__dirname, 'public')));
 
 ['/', '/about', '/services', '/contact'].forEach((route) => {

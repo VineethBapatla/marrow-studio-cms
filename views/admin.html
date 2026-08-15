@@ -96,6 +96,11 @@
     object-fit: cover;
     background: var(--color-bg-alt);
   }
+  .upload-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .btn--small { padding: 9px 16px; font-size: 0.72rem; }
+  .upload-status { font-size: 0.82rem; color: var(--color-ink-soft); }
+  .upload-status--ok { color: var(--color-forest); }
+  .upload-status--error { color: #B23A2E; }
   @media (max-width: 560px) {
     .field-card--image { grid-template-columns: 1fr; }
     .field-card--image .img-preview { width: 100%; height: 160px; }
@@ -231,6 +236,48 @@ function renderPagePanel(page) {
         if (preview) preview.src = el.value;
       }
     });
+
+    if (f.field_type === 'image') {
+      const uploadBtn = document.getElementById(`upload-btn-${f.id}`);
+      const uploadInput = document.getElementById(`upload-input-${f.id}`);
+      const statusEl = document.getElementById(`upload-status-${f.id}`);
+
+      uploadBtn.addEventListener('click', () => uploadInput.click());
+
+      uploadInput.addEventListener('change', async () => {
+        const file = uploadInput.files[0];
+        if (!file) return;
+
+        statusEl.textContent = 'Uploading…';
+        statusEl.className = 'upload-status';
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+          const res = await fetch('/api/admin/upload', { method: 'POST', body: formData });
+          const data = await res.json();
+
+          if (!res.ok) {
+            statusEl.textContent = data.error || 'Upload failed.';
+            statusEl.className = 'upload-status upload-status--error';
+            return;
+          }
+
+          el.value = data.url;
+          document.getElementById(`preview-${f.id}`).src = data.url;
+          dirtyFields[f.id] = data.url;
+          showSaveBar();
+          statusEl.textContent = 'Uploaded ✓';
+          statusEl.className = 'upload-status upload-status--ok';
+        } catch (err) {
+          statusEl.textContent = 'Upload failed — check your connection.';
+          statusEl.className = 'upload-status upload-status--error';
+        } finally {
+          uploadInput.value = '';
+        }
+      });
+    }
   });
 }
 
@@ -242,6 +289,11 @@ function fieldHtml(f) {
         <div>
           <label for="field-${f.id}">${escapeHtml(f.field_label)}</label>
           <input type="text" id="field-${f.id}" value="${escapeAttr(f.value)}" placeholder="https://...">
+          <div class="upload-row">
+            <button type="button" class="btn btn--ghost btn--small" id="upload-btn-${f.id}">Upload image</button>
+            <input type="file" id="upload-input-${f.id}" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;">
+            <span class="upload-status" id="upload-status-${f.id}"></span>
+          </div>
         </div>
       </div>`;
   }
